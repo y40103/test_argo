@@ -1,0 +1,26 @@
+POSTGRES:
+  POSTGRES_IMAGE_TAG: "latest"
+  POSTGRES_USER: thinktron
+  POSTGRES_PASSWORD: dev123_thinktron
+  POSTGRES_HOST: st-pg-0.svc-pg.dev.svc.cluster.local
+  PGPORT: 5432
+  POSTGRES_DB: prefect
+  POSTGRES_DEFAULT_DB: mingde_main
+
+REDIS:
+  REDIS_HOST: redis-0.redis-svc.dev.svc.cluster.local
+
+PREFECT_SERVER:
+  PREFECT_API_URL: http://svc-prefect.dev.svc.cluster.local:4200/api
+  PREFECT_UI_URL: http://svc-prefect.dev.svc.cluster.local:4200/api
+
+
+NODE:
+  IP: "192.168.137.23"
+  #IP: "192.168.0.120"
+  DB_VM_HOSTNAME: "hccuse-gem12"
+  PROTOCOL: "http"
+  DOMAIN: "mingdetest.com"
+  API_ROOT_URL: "localhost:8000"
+  
+  

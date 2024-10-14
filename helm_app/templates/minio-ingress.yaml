@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-ingress
+  namespace: dev
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    ingress.kubernetes.io/proxy-body-size: 4096m
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: mingdetest.com
+      http:
+        paths:
+        - backend:
+            service:
+              name: svc-minio-ui
+              port:
+                number: 9001
+          path: /minio/(.*)
+          pathType: ImplementationSpecific
+
+---
+
+#apiVersion: networking.k8s.io/v1
+#kind: Ingress
+#metadata:
+#  name: minio-ingress-redirect
+#  namespace: dev
+#  annotations:
+#    nginx.ingress.kubernetes.io/permanent-redirect: /
+#spec:
+#  ingressClassName: nginx
+#  rules:
+#    - host: mingdetest.com
+#      http:
+#        paths:
+#        - path: /minio/login
+#          pathType: Prefix
+#          backend:
+#            service:
+#              name: svc-minio-ui
+#              port:
+#                number: 9001
+#        - path: /
+#          pathType: Prefix
+#          backend:
+#            service:
+#              name: svc-minio-ui
+#              port:
+#                number: 9001

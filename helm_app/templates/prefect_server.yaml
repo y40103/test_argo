@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prefect-server-config
+  namespace: dev
+data:
+  PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://{{ .Values.POSTGRES.POSTGRES_USER }}:{{ .Values.POSTGRES.POSTGRES_PASSWORD }}@{{ .Values.POSTGRES.POSTGRES_HOST }}:{{ .Values.POSTGRES.PGPORT }}/prefect"
+  PREFECT_SERVER_API_HOST: "0.0.0.0"
+  PREFECT_UI_URL: "{{ .Values.PREFECT_SERVER.PREFECT_UI_URL }}"
+  PREFECT_API_URL: "{{ .Values.PREFECT_SERVER.PREFECT_API_URL }}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-server
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: prefect-server
+  replicas: 1
+  template: # pod template
+    metadata:
+      labels:
+        app: prefect-server
+    spec:
+      containers:
+        - name: prefect-server
+          image: prefecthq/prefect:2-python3.11
+          command: [ "/opt/prefect/entrypoint.sh", "prefect", "server", "start" ]
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: prefect-server-config
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "prefect", "work-pool", "delete", "worker-pool" ]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-prefect # service name
+  namespace: dev # namspace
+spec:
+  selector: # label選擇器,用於確定 service代理哪些Pod
+    app: prefect-server # label key:value
+  #若開啟 , 同一個IP的請求會分到 固定的pod上
+  type: NodePort
+  ports: # port基本資訊
+    - port: 4200 # service port
+      protocol: TCP
+      targetPort: 4200 # pod port
+      nodePort: 30001

@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prefect-worker-config
+  namespace: dev
+data:
+  PREFECT_API_URL: "{{ .Values.PREFECT_SERVER.PREFECT_API_URL }}"
+  POSTGRES_USERNAME: "{{ .Values.POSTGRES.POSTGRES_USER }}"
+  POSTGRES_PASSWORD: "{{ .Values.POSTGRES.POSTGRES_PASSWORD }}"
+  POSTGRES_HOST: "{{ .Values.POSTGRES.POSTGRES_HOST }}"
+  PGPORT: "{{ .Values.POSTGRES.PGPORT }}"
+  POSTGRES_DB: "{{ .Values.POSTGRES.POSTGRES_DB }}"
+  POSTGRES_DEFAULT_DB: "{{ .Values.POSTGRES.POSTGRES_DEFAULT_DB }}"
+  TZ: "Asia/Taipei"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: worker-role
+  namespace: dev
+rules:
+  - apiGroups: [ "batch","" ]
+    resources: [ "jobs","namespaces","pods","pods/log" ]
+    verbs: [ "get", "list", "watch", "create","delete","patch" ]
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: worker
+  namespace: dev
+  labels:
+    app: prefect-worker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: worker-rolebinding
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: worker
+  namespace: dev
+roleRef:
+  kind: ClusterRole
+  name: worker-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-worker
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: prefect-worker
+  replicas: 1
+  template: # pod template
+    metadata:
+      labels:
+        app: prefect-worker
+    spec:
+      serviceAccountName: worker
+      containers:
+        - name: prefect-worker
+          image: y40103/prefect_worker:latest
+          command: [ "/opt/prefect/entrypoint.sh", "prefect", "worker","start", "--pool","worker-pool","--type","kubernetes" ]
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: prefect-worker-config
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prefect-deploy
+  namespace: dev
+spec:
+  template: # pod template
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: prefect-deploy
+          image: y40103/prefect_worker:latest
+          command: ["/usr/bin/bash", "-c", " sleep 90;prefect --no-prompt deploy --all; prefect work-pool set-concurrency-limit worker-pool 5"]
+          imagePullPolicy: Always
+          env:
+            - name: PREFECT_API_URL
+              value: "{{ .Values.PREFECT_SERVER.PREFECT_API_URL }}"
+          envFrom:
+            - configMapRef:
+                name: prefect-worker-config
